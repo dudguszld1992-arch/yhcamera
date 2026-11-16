@@ -29,10 +29,13 @@ input{display:none}
  var rows={},rowEl={};
  document.querySelectorAll('.work-row[data-key]').forEach(function(r){if(r.classList.contains('no-work'))return;var k=r.dataset.key;rows[k]=qtyOf(r);rowEl[k]=r;});
  var snap=get('yhc_snap_'+K,null);
- put('yhc_snap_'+K,{name:window.YHC_FILE||(snap&&snap.name)||'',at:(snap&&snap.at)||Date.now(),rows:rows});
  // 파일 이름표(KEY) 안의 '품번|…|사이즈:주문:바닥카' 를 읽는다(기록이 없는 예전 파일용).
  function parseList(k){var m={},re=/(.+?):(-?[\d.]*):(-?[\d.]*)(?:\|\|(?=.)|$)/g,x,s=k.slice(P.length);while((x=re.exec(s)))m[x[1]]={order:x[2],scan:x[3]};return m;}
- function label(full){var a=full.split('|');var type=a.shift();var size=a[a.length-1],design=a[0];return design+' '+size+(type==='warehouse'?' (창고)':type==='floor'?' (바닥카)':'');}
+ // 바닥카 칸이 '주문분 꺼내기'(take)인지 '주문 외 꺼내기'(remove)인지: PC와 같은 계산(바닥카 주문분 합 ≤ 잔여 합이면 take).
+ function modeOf(list){var f=0,r=0;Object.keys(list).forEach(function(i){var o=+list[i].order||0,c=+list[i].scan||0;f+=Math.min(o,c);r+=Math.max(0,c-o);});return f<=r?'take':'remove';}
+ var MODE=document.querySelector('section.source.floor.remove')?'remove':document.querySelector('section.source.floor')?'take':modeOf(parseList(K));
+ put('yhc_snap_'+K,{name:window.YHC_FILE||(snap&&snap.name)||'',at:(snap&&snap.at)||Date.now(),rows:rows,mode:MODE});
+ function label(full,mode){var a=full.split('|');var type=a.shift();var size=a[a.length-1],design=a[0];return design+' '+size+(type==='warehouse'?' (창고)':type==='floor'?((mode||MODE)==='remove'?' (바닥카 주문 외)':' (바닥카 주문분)'):'');}
  var css=document.createElement('style');css.textContent='.yhc-box{margin:10px 0;padding:10px 12px;border:2px solid #101828;border-radius:10px;background:#fff;font-size:15px;line-height:1.45;color:#101828}.yhc-box h3{margin:0 0 6px;font-size:17px}.yhc-box button{min-height:44px;margin:4px 6px 4px 0;padding:0 14px;border:0;border-radius:8px;background:#0b8a4a;color:#fff;font-size:16px;font-weight:800}.yhc-box button.sub{background:#e4e7ec;color:#101828;font-weight:700}.yhc-box ul{margin:4px 0 8px;padding-left:18px}.yhc-box li{margin:2px 0}.yhc-box .g{font-weight:800;margin-top:6px}.yhc-warn-row{background:#fff4c2!important;outline:2px solid #e0a800}.yhc-note{grid-column:1/-1;margin:0 0 6px;padding:4px 8px;background:#fff4c2;color:#5c4a00;font-size:14px;font-weight:700;border-radius:6px}';
  document.head.appendChild(css);
  var top=document.querySelector('.top')||document.body.firstElementChild;
@@ -45,7 +48,8 @@ input{display:none}
   function list(title,arr){if(!arr.length)return '';return '<div class="g">'+esc(title)+' '+arr.length+'줄</div><ul>'+arr.slice(0,200).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+(arr.length>200?'<li>… 외 '+(arr.length-200)+'줄</li>':'')+'</ul>';}
   var w=Object.keys(c.warn).map(function(k){return label(k)+' · '+c.warn[k];});
   h+=list('확인 필요 (수량·위치 바뀜, 체크 안 함)',w);
-  h+=list('어제 꺼냈는데 지금 목록에 없음 (다시 넣을지 확인)',c.gone.map(label));
+  h+=list('바닥카 작업 종류가 바뀌어 안 옮긴 체크 (어제 '+(c.oldMode==='remove'?'주문 외 꺼내기':'주문분 꺼내기')+' → 오늘 '+(MODE==='remove'?'주문 외 꺼내기':'주문분 꺼내기')+')',(c.modeSkip||[]).map(function(k){return label(k,c.oldMode);}));
+  h+=list('어제 꺼냈는데 지금 목록에 없음 (확인)',c.gone.map(function(k){return label(k,c.oldMode);}));
   h+=list('새로 생긴 줄 (빈칸, 새로 꺼내야 함)',c.fresh.map(function(k){return label(k)+(rows[k]!=null?' '+rows[k]+'족':'');}));
   h+='<button type="button" class="sub" id="yhcFold">'+(c.fold?'목록 펼치기':'목록 접기')+'</button>';
   box.innerHTML=h;box.hidden=false;
@@ -69,11 +73,14 @@ input{display:none}
  box.querySelectorAll('button[data-i]').forEach(function(b){b.onclick=function(){carry(cands[+b.dataset.i]);};});
  function carry(c){
   var old=get(c.key,{}),os=get('yhc_snap_'+c.key,null),oldList=parseList(c.key),newList=parseList(K);
-  var res={from:c.key,moved:0,warn:{},gone:[],fresh:[],at:Date.now()};
+  var oldMode=os&&os.mode||modeOf(oldList);
+  var res={from:c.key,moved:0,warn:{},gone:[],fresh:[],modeSkip:[],oldMode:oldMode,at:Date.now()};
   var oldItems={};Object.keys(oldList).forEach(function(x){oldItems[x]=1;});
   if(os)Object.keys(os.rows||{}).forEach(function(x){oldItems[x.slice(x.indexOf('|')+1)]=1;});
   var newByItem={};Object.keys(rows).forEach(function(k){var it=k.slice(k.indexOf('|')+1);(newByItem[it]=newByItem[it]||[]).push(k);});
   Object.keys(old).forEach(function(k){if(!old[k])return;var it=k.slice(k.indexOf('|')+1);
+   // 어제 '주문 외 빼기' 체크를 오늘 '주문분 꺼내기'로 옮기면 뜻이 달라지므로 옮기지 않는다.
+   if(k.indexOf('floor|')===0&&oldMode!==MODE){res.modeSkip.push(k);return;}
    if(k in rows){
     var same,txt;
     if(os&&os.rows&&os.rows[k]!=null){same=os.rows[k]===rows[k];txt='어제 '+os.rows[k]+'족 꺼냄 → 지금 '+rows[k]+'족 · 확인 필요';}
