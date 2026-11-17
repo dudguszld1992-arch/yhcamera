@@ -76,18 +76,24 @@ input{display:none}
   var want={};Object.keys(c.warn).forEach(function(k){if(rowEl[k])want[k]=1;});c.fresh.forEach(function(k){if(rowEl[k]&&!done[k])want[k]=1;});
   order=[];document.querySelectorAll('.work-row[data-key]').forEach(function(r){if(want[r.dataset.key])order.push(r.dataset.key);});at=-1;upd();
  }
+ // 체크를 누를 때마다 '마지막으로 작업한 시각'을 남긴다(옮길 목록을 고를 때 씀).
+ document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('.size-btn,.complete-btn'))put('yhc_touch_'+K,Date.now());},true);
  var carried=get(CK,null);
  if(carried){report(carried);return;}
- // 체크가 있는 다른 피킹 목록을 찾는다(최근 것 먼저).
- var cands=[];
- for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(!k||k.indexOf(P)!==0||k===K)continue;var d=get(k,{});var n=Object.keys(d).filter(function(x){return d[x];}).length;if(!n)continue;var sn=get('yhc_snap_'+k,null);cands.push({key:k,n:n,name:sn&&sn.name||'',at:sn&&sn.at||0});}
+ // 체크가 있는 다른 피킹 목록 중 가장 최근에 작업한 것 하나만 먼저 보여 준다.
+ // 이미 다른 파일로 옮겨 간 목록은 뺀다(기록은 지우지 않음).
+ var used={},cands=[],i,k;
+ for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(k&&k.indexOf('yhc_carry_')===0){var cr=get(k,null);if(cr&&cr.from)used[cr.from]=1;}}
+ for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(!k||k.indexOf(P)!==0||k===K||used[k])continue;var d=get(k,{});var n=Object.keys(d).filter(function(x){return d[x];}).length;if(!n)continue;var sn=get('yhc_snap_'+k,null);cands.push({key:k,n:n,name:sn&&sn.name||'',at:Math.max(+get('yhc_touch_'+k,0)||0,sn&&sn.at||0)});}
  if(!cands.length)return;
  cands.sort(function(a,b){return b.at-a.at||b.n-a.n;});
  if(get('yhc_skip_'+K,false))return;
- var h='<h3>이전 피킹 체크 옮기기</h3><div>품번·사이즈·수량이 같은 줄만 체크합니다. 수량이 바뀐 줄은 노란색으로 표시만 합니다.</div>';
- cands.slice(0,3).forEach(function(c,i){var first=Object.keys(get(c.key,{}))[0]||'';h+='<button type="button" data-i="'+i+'">옮기기 · '+esc(c.name||('체크 '+c.n+'줄 목록 · '+label(first)+' 등'))+(c.name?' · 체크 '+c.n+'줄':'')+'</button>';});
+ function candBtn(c,i){var first=Object.keys(get(c.key,{}))[0]||'';var when=c.at?new Date(c.at):null;var w=when?(when.getMonth()+1)+'.'+when.getDate()+' '+when.getHours()+':'+('0'+when.getMinutes()).slice(-2)+' 작업 · ':'';return '<button type="button" data-i="'+i+'">'+(i?'':'옮기기 · ')+esc(w+(c.name||(label(first)+' 등'))+' · 체크 '+c.n+'줄')+'</button>';}
+ var h='<h3>이전 피킹 체크 옮기기</h3><div>마지막으로 작업한 목록입니다. 품번·사이즈·수량이 같은 줄만 체크하고, 바뀐 줄은 노란색으로 표시만 합니다.</div>'+candBtn(cands[0],0);
+ if(cands.length>1)h+='<button type="button" class="sub" id="yhcMore">다른 목록에서 ('+(cands.length-1)+'개)</button><div id="yhcOthers" hidden>'+cands.slice(1,8).map(function(c,j){return candBtn(c,j+1);}).join('')+'</div>';
  h+='<button type="button" class="sub" id="yhcSkip">옮기지 않음</button>';
  box.innerHTML=h;box.hidden=false;
+ var more=box.querySelector('#yhcMore');if(more)more.onclick=function(){box.querySelector('#yhcOthers').hidden=false;more.remove();};
  box.querySelector('#yhcSkip').onclick=function(){put('yhc_skip_'+K,true);box.hidden=true;};
  box.querySelectorAll('button[data-i]').forEach(function(b){b.onclick=function(){carry(cands[+b.dataset.i]);};});
  function carry(c){
@@ -110,6 +116,7 @@ input{display:none}
   });
   Object.keys(rows).forEach(function(k){var it=k.slice(k.indexOf('|')+1);if(!oldItems[it])res.fresh.push(k);});
   try{save();paint();}catch(e){}
+  put('yhc_touch_'+K,Date.now());
   put(CK,res);report(res);window.scrollTo(0,0);
  }
 })();
