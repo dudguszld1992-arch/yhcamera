@@ -23,7 +23,7 @@ input{display:none}
  if(typeof K!=='string'||K.indexOf(P)!==0)return;
  // 바닥카에서 꺼낼 칸은 기본 접어 두고, 머리 버튼을 누르면 펼친다(펼침 상태는 이 목록마다 기억).
  (function(){
-  var FK='yhc_floor_open_'+K;function fget(){try{return localStorage.getItem(FK)==='true';}catch(e){return false;}}function fset(v){try{localStorage.setItem(FK,v?'true':'false');}catch(e){}}
+  var FK='yhc_floor_open_'+K;function fget(){try{return localStorage.getItem(FK)!=='false';}catch(e){return true;}}function fset(v){try{localStorage.setItem(FK,v?'true':'false');}catch(e){}}
   document.querySelectorAll('section.source.floor').forEach(function(sec){
    var grid=sec.querySelector('.grid'),head=sec.querySelector('.source-head');if(!grid||!head)return;
    var h2=head.querySelector('h2'),title=h2?h2.textContent:'바닥카에서 꺼내기';
@@ -52,6 +52,21 @@ input{display:none}
  function modeOf(list){var f=0,r=0;Object.keys(list).forEach(function(i){var o=+list[i].order||0,c=+list[i].scan||0;f+=Math.min(o,c);r+=Math.max(0,c-o);});return f<=r?'take':'remove';}
  var MODE=document.querySelector('section.source.floor.remove')?'remove':document.querySelector('section.source.floor')?'take':modeOf(parseList(K));
  put('yhc_snap_'+K,{name:window.YHC_FILE||(snap&&snap.name)||'',at:(snap&&snap.at)||Date.now(),rows:rows,mode:MODE});
+ // 바닥카의 나머지 절반(주문 외 꺼내기면 '그대로 둔 주문분', 주문분 꺼내기면 '남겨 둔 주문 외')을 펼쳐 볼 수 있게 보여 준다. 표시만 한다.
+ (function(){
+  var sec=document.querySelector('section.source.floor');var list=parseList(K),g={},tot=0;
+  Object.keys(list).forEach(function(it){var o=+list[it].order||0,c=+list[it].scan||0,q=MODE==='remove'?Math.min(o,c):Math.max(0,c-o);if(q<=0)return;var a=it.split('|'),size=a[a.length-1],head=a[0]+(a[1]&&a[1]!=='-'?' '+a[1]:'')+(a.length>3&&a.slice(2,-1).join('|')?' / '+a.slice(2,-1).join('|'):'');(g[head]=g[head]||[]).push([size,q]);tot+=q;});
+  if(!tot)return;
+  var title=MODE==='remove'?'바닥카에 그대로 둔 주문분':'바닥카에 남겨 둔 주문 외 재고';
+  var wrap=document.createElement('section');wrap.className='yhc-rest';wrap.style.cssText='margin:10px 0;border:2px solid #087653;border-radius:10px;background:#fff';
+  var btn=document.createElement('button');btn.type='button';btn.style.cssText='display:block;width:100%;min-height:56px;padding:8px 12px;border:0;background:#f0faf5;color:#065f46;font-size:17px;font-weight:800;text-align:left;border-radius:8px';
+  var body=document.createElement('div');body.style.cssText='display:none;padding:4px 12px 10px';
+  body.innerHTML=Object.keys(g).sort().map(function(h){var r=g[h].sort(function(x,y){return parseFloat(x[0])-parseFloat(y[0]);});var n=r.reduce(function(s,x){return s+x[1];},0);return '<div style="padding:8px 0;border-bottom:1px solid #eaecf0"><div style="font-size:16px;font-weight:800;color:#101828">'+esc(h)+' <span style="color:#065f46">'+n+'족</span></div><div style="font-size:16px;color:#101828;font-variant-numeric:tabular-nums;margin-top:2px">'+r.map(function(x){return esc(x[0])+' <b>'+x[1]+'</b>';}).join(' · ')+'</div></div>';}).join('')+'<div style="padding-top:6px;color:#475467;font-size:13px">'+(MODE==='remove'?'꺼내지 않고 바닥카에 두는 주문분입니다. 체크할 것 없음.':'꺼내지 않고 바닥카에 남기는 주문 외 재고입니다. 체크할 것 없음.')+'</div>';
+  var open=false;function show(){body.style.display=open?'block':'none';btn.textContent=(open?'▲ 접기 · ':'▼ 펼쳐 보기 · ')+title+' · '+tot+'족 · '+Object.keys(g).length+'모델';}
+  btn.onclick=function(){open=!open;show();};show();
+  wrap.appendChild(btn);wrap.appendChild(body);
+  if(sec)sec.insertAdjacentElement('afterend',wrap);else{var t=document.querySelector('.top');(t&&t.parentNode?t.parentNode:document.body).insertBefore(wrap,t?t.nextSibling:document.body.firstChild);}
+ })();
  function label(full,mode){var a=full.split('|');var type=a.shift();var size=a[a.length-1],design=a[0],color=a.length>=4&&a[1]&&a[1]!=='-'?a[1]:'',combo=a.length>=4?a.slice(2,-1).join('|'):'';return design+(color?' '+color:'')+(combo?' / '+combo:'')+' · '+size+(type==='warehouse'?' (창고)':type==='floor'?((mode||MODE)==='remove'?' (바닥카 주문 외)':' (바닥카 주문분)'):'');}
  var css=document.createElement('style');css.textContent='.yhc-box{margin:10px 0;padding:10px 12px;border:2px solid #101828;border-radius:10px;background:#fff;font-size:15px;line-height:1.45;color:#101828}.yhc-box h3{margin:0 0 6px;font-size:17px}.yhc-box button{min-height:44px;margin:4px 6px 4px 0;padding:0 14px;border:0;border-radius:8px;background:#0b8a4a;color:#fff;font-size:16px;font-weight:800}.yhc-box button.sub{background:#e4e7ec;color:#101828;font-weight:700}.yhc-box ul{margin:4px 0 8px;padding-left:18px}.yhc-box li{margin:2px 0}.yhc-box .g{font-weight:800;margin-top:6px}.yhc-warn-row{background:#fff4c2!important;outline:2px solid #e0a800}.yhc-note{grid-column:1/-1;margin:0 0 6px;padding:4px 8px;background:#fff4c2;color:#5c4a00;font-size:14px;font-weight:700;border-radius:6px}';
  document.head.appendChild(css);
