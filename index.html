@@ -102,10 +102,11 @@ input{display:none}
   if(c.from){var ol=parseList(c.from),nl=parseList(K),od=get(c.from,{}),chk={};Object.keys(od).forEach(function(x){if(od[x])chk[x.slice(x.indexOf('|')+1)]=1;});
    var van=Object.keys(ol).filter(function(it){return (+ol[it].order||0)>0&&!chk[it]&&!((nl[it]&&+nl[it].order)>0);}).map(function(it){return {t:label('x|'+it)+' · 어제 주문 '+ol[it].order+'족 → 오늘 '+(nl[it]?'주문 0':'목록에 없음'),k:''};});
    h+=list('어제 주문 있었는데 오늘 주문에서 빠진 줄 (어제 체크 안 함)',van,'#6941c6');}
-  h+='<button type="button" class="sub" id="yhcFold">'+(c.fold?'목록 펼치기':'목록 접기')+'</button>';
+  h+='<button type="button" class="sub" id="yhcFold">'+(c.fold?'목록 펼치기':'목록 접기')+'</button><button type="button" class="sub" id="yhcAgain">다른 목록에서 체크 더 가져오기</button>';
   box.innerHTML=h;box.hidden=false;
   if(c.fold)box.querySelectorAll('.g,ul').forEach(function(e){e.style.display='none';});
   box.querySelector('#yhcFold').onclick=function(){c.fold=!c.fold;put(CK,c);report(c);};
+  box.querySelector('#yhcAgain').onclick=function(){showPicker(true);};
   box.querySelectorAll('a[data-k]').forEach(function(a){a.onclick=function(ev){ev.preventDefault();jump(a.dataset.k);};});
   Object.keys(c.warn).forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'#fff1b8','#e0a800');addNote(r,'⚠ '+c.warn[k],'#fff1b8','#7a4b00');});
   c.fresh.forEach(function(k){var r=rowEl[k];if(!r||done[k])return;paintRow(r,'#e0ecff','#2e6be6');addNote(r,'새로 생긴 줄 · 새로 꺼내야 함','#e0ecff','#123f91');});
@@ -115,24 +116,24 @@ input{display:none}
  }
  // 체크를 누를 때마다 '마지막으로 작업한 시각'을 남긴다(옮길 목록을 고를 때 씀).
  document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('.size-btn,.complete-btn'))put('yhc_touch_'+K,Date.now());},true);
+ // 체크가 있는 다른 피킹 목록(최근 작업 먼저). 기록은 지우지 않고, 옮기기는 체크를 '더하기'만 한다.
+ function getCands(){var cands=[],i,k;for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(!k||k.indexOf(P)!==0||k===K)continue;var d=get(k,{});var n=Object.keys(d).filter(function(x){return d[x];}).length;if(!n)continue;var sn=get('yhc_snap_'+k,null);cands.push({key:k,n:n,name:sn&&sn.name||'',at:Math.max(+get('yhc_touch_'+k,0)||0,sn&&sn.at||0)});}
+  cands.sort(function(a,b){return b.at-a.at||b.n-a.n;});return cands;}
+ function candBtn(c,i){var first=Object.keys(get(c.key,{}))[0]||'';var when=c.at?new Date(c.at):null;var w=when?(when.getMonth()+1)+'.'+when.getDate()+' '+when.getHours()+':'+('0'+when.getMinutes()).slice(-2)+' 작업 · ':'시각 기록 없음 · ';return '<button type="button" data-i="'+i+'"'+(i?' style="background:#344054"':'')+'>'+esc(w+(c.name||(label(first)+' 등'))+' · 체크 '+c.n+'줄')+'</button>';}
+ function showPicker(again){var cands=getCands();
+  var n0=Object.keys(done||{}).filter(function(x){return done[x];}).length;
+  var h='<h3>'+(again?'다른 목록에서 체크 더 가져오기':'이전 피킹 체크 옮기기')+'</h3><div>지금 이 목록 체크 '+n0+'줄은 그대로 두고, 고른 목록의 체크를 더합니다. 품번·색상·사이즈·수량이 같은 줄만 체크하고, 바뀐 줄은 노란색으로 표시만 합니다.</div>';
+  if(!cands.length)h+='<div class="g">체크가 남아 있는 다른 목록이 없습니다.</div>';
+  else{h+=candBtn(cands[0],0);if(cands.length>1)h+='<div class="g">다른 목록 (최근 작업 순)</div>'+cands.slice(1,15).map(function(c,j){return candBtn(c,j+1);}).join('');}
+  h+='<button type="button" class="sub" id="yhcSkip">'+(again?'닫기':'옮기지 않음')+'</button>';
+  box.innerHTML=h;box.hidden=false;
+  box.querySelector('#yhcSkip').onclick=function(){if(again){var c=get(CK,null);if(c){report(c);return;}}put('yhc_skip_'+K,true);showSmall();};
+  box.querySelectorAll('button[data-i]').forEach(function(b){b.onclick=function(){carry(cands[+b.dataset.i]);};});
+ }
+ function showSmall(){box.innerHTML='<button type="button" class="sub" id="yhcOpen">이전 목록 체크 가져오기</button>';box.hidden=false;box.querySelector('#yhcOpen').onclick=function(){showPicker(false);};}
  var carried=get(CK,null);
- if(carried){report(carried);return;}
- // 체크가 있는 다른 피킹 목록 중 가장 최근에 작업한 것 하나만 먼저 보여 준다.
- // 이미 다른 파일로 옮겨 간 목록은 뺀다(기록은 지우지 않음).
- var used={},cands=[],i,k;
- for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(k&&k.indexOf('yhc_carry_')===0){var cr=get(k,null);if(cr&&cr.from)used[cr.from]=1;}}
- for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(!k||k.indexOf(P)!==0||k===K||used[k])continue;var d=get(k,{});var n=Object.keys(d).filter(function(x){return d[x];}).length;if(!n)continue;var sn=get('yhc_snap_'+k,null);cands.push({key:k,n:n,name:sn&&sn.name||'',at:Math.max(+get('yhc_touch_'+k,0)||0,sn&&sn.at||0)});}
- if(!cands.length)return;
- cands.sort(function(a,b){return b.at-a.at||b.n-a.n;});
- if(get('yhc_skip_'+K,false))return;
- function candBtn(c,i){var first=Object.keys(get(c.key,{}))[0]||'';var when=c.at?new Date(c.at):null;var w=when?(when.getMonth()+1)+'.'+when.getDate()+' '+when.getHours()+':'+('0'+when.getMinutes()).slice(-2)+' 작업 · ':'';return '<button type="button" data-i="'+i+'">'+(i?'':'옮기기 · ')+esc(w+(c.name||(label(first)+' 등'))+' · 체크 '+c.n+'줄')+'</button>';}
- var h='<h3>이전 피킹 체크 옮기기</h3><div>마지막으로 작업한 목록입니다. 품번·사이즈·수량이 같은 줄만 체크하고, 바뀐 줄은 노란색으로 표시만 합니다.</div>'+candBtn(cands[0],0);
- if(cands.length>1)h+='<button type="button" class="sub" id="yhcMore">다른 목록에서 ('+(cands.length-1)+'개)</button><div id="yhcOthers" hidden>'+cands.slice(1,8).map(function(c,j){return candBtn(c,j+1);}).join('')+'</div>';
- h+='<button type="button" class="sub" id="yhcSkip">옮기지 않음</button>';
- box.innerHTML=h;box.hidden=false;
- var more=box.querySelector('#yhcMore');if(more)more.onclick=function(){box.querySelector('#yhcOthers').hidden=false;more.remove();};
- box.querySelector('#yhcSkip').onclick=function(){put('yhc_skip_'+K,true);box.hidden=true;};
- box.querySelectorAll('button[data-i]').forEach(function(b){b.onclick=function(){carry(cands[+b.dataset.i]);};});
+ if(carried){report(carried);}
+ else if(getCands().length){if(get('yhc_skip_'+K,false))showSmall();else showPicker(false);}
  function carry(c){
   var old=get(c.key,{}),os=get('yhc_snap_'+c.key,null),oldList=parseList(c.key),newList=parseList(K);
   var oldMode=os&&os.mode||modeOf(oldList);
@@ -147,13 +148,15 @@ input{display:none}
     var same,txt;
     if(os&&os.rows&&os.rows[k]!=null){same=os.rows[k]===rows[k];txt='어제 '+os.rows[k]+'족 꺼냄 → 지금 '+rows[k]+'족 · 확인 필요';}
     else{var o=oldList[it],n=newList[it];same=!!(o&&n&&o.order===n.order&&o.scan===n.scan);txt=o&&n&&o.order!==n.order?'어제 체크함 · 주문 '+o.order+'족 → '+n.order+'족으로 바뀜 · 확인 필요':'어제 체크함 · 바닥카 수량이 바뀜 · 확인 필요';}
-    if(same){done[k]=true;res.moved++;}else res.warn[k]=txt;
+    if(done[k]){/* 이미 체크된 줄은 그대로 */}else if(same){done[k]=true;res.moved++;}else res.warn[k]=txt;
    }else if(newByItem[it]){newByItem[it].forEach(function(k2){if(!done[k2])res.warn[k2]='어제 '+(k.indexOf('warehouse|')===0?'창고':'바닥카')+'에서 체크함 · 위치가 바뀜 · 확인 필요';});}
    else res.gone.push(k);
   });
   Object.keys(rows).forEach(function(k){var it=k.slice(k.indexOf('|')+1);if(!oldItems[it])res.fresh.push(k);});
   try{save();paint();}catch(e){}
   put('yhc_touch_'+K,Date.now());
+  var prev=get(CK,null);if(prev){res.moved+=prev.moved||0;Object.keys(prev.warn||{}).forEach(function(k){if(!done[k]&&!(k in res.warn))res.warn[k]=prev.warn[k];});}
+  Object.keys(res.warn).forEach(function(k){if(done[k])delete res.warn[k];});
   put(CK,res);report(res);window.scrollTo(0,0);
  }
 })();
