@@ -87,31 +87,25 @@ input{display:none}
  document.body.appendChild(nextBtn);
  function upd(){if(!order.length){nextBtn.style.display='none';return;}nextBtn.style.display='block';nextBtn.textContent='확인할 줄 '+(at<0?order.length+'개':(at+1)+'/'+order.length)+' ▶';}
  function report(c){
-  var h='<h3>어제 체크 옮김 · '+c.moved+'줄 체크</h3><div>아래 줄을 누르면 그 칸으로 갑니다. 오른쪽 아래 주황 버튼으로 하나씩 넘어갈 수도 있어요.</div>';
-  var byItem={};Object.keys(rowEl).forEach(function(k){var it=k.slice(k.indexOf('|')+1);(byItem[it]=byItem[it]||[]).push(k);});
-  function list(title,arr,color){if(!arr.length)return '';return '<div class="g" style="color:'+color+'">'+esc(title)+' '+arr.length+'줄</div><ul>'+arr.slice(0,300).map(function(x){return x.k?'<li><a href="#" data-k="'+esc(x.k)+'" style="color:#101828;font-weight:700;text-decoration:underline">'+esc(x.t)+' →</a></li>':'<li>'+esc(x.t)+'</li>';}).join('')+(arr.length>300?'<li>… 외 '+(arr.length-300)+'줄</li>':'')+'</ul>';}
-  var w=Object.keys(c.warn).map(function(k){return {t:label(k)+' · '+c.warn[k],k:rowEl[k]?k:''};});
-  var ms=(c.modeSkip||[]).map(function(k){var it=k.slice(k.indexOf('|')+1),n=(byItem[it]||[])[0];return {t:label(k,c.oldMode),k:n||''};});
-  var fr=c.fresh.map(function(k){return {t:label(k)+(rows[k]!=null?' '+rows[k]+'족':''),k:rowEl[k]?k:''};});
-  h+=list('확인 필요 (수량·위치 바뀜, 체크 안 함) · 노란색',w,'#b54708');
-  h+=list('바닥카 작업 종류가 바뀌어 안 옮긴 체크 (어제 '+(c.oldMode==='remove'?'주문 외 꺼내기':'주문분 꺼내기')+' → 오늘 '+(MODE==='remove'?'주문 외 꺼내기':'주문분 꺼내기')+')',ms,'#101828');
-  var olq=c.from?parseList(c.from):{},nlq=parseList(K);
-  h+=list('어제 꺼냈는데(체크함) 오늘 목록에 없음 · 다시 넣을지 확인',c.gone.map(function(k){var it=k.slice(k.indexOf('|')+1);return {t:label(k,c.oldMode)+(olq[it]?' · 어제 주문 '+olq[it].order+'족 → 오늘 '+(nlq[it]?'주문 '+(nlq[it].order||0)+'족':'목록에 없음'):''),k:''};}),'#b42318');
-  h+=list('새로 생긴 줄 (빈칸, 새로 꺼내야 함) · 파란색',fr,'#175cd3');
-  // 어제 목록에서 주문이 있었는데 오늘 목록에서 주문이 사라진 줄(체크 안 한 것). 체크한 것은 위 '어제 꺼냈는데' 목록에 있다.
-  if(c.from){var ol=parseList(c.from),nl=parseList(K),od=get(c.from,{}),chk={};Object.keys(od).forEach(function(x){if(od[x])chk[x.slice(x.indexOf('|')+1)]=1;});
-   var van=Object.keys(ol).filter(function(it){return (+ol[it].order||0)>0&&!chk[it]&&!((nl[it]&&+nl[it].order)>0);}).map(function(it){return {t:label('x|'+it)+' · 어제 주문 '+ol[it].order+'족 → 오늘 '+(nl[it]?'주문 0':'목록에 없음'),k:''};});
-   h+=list('어제 주문 있었는데 오늘 주문에서 빠진 줄 (어제 체크 안 함)',van,'#6941c6');}
-  h+='<button type="button" class="sub" id="yhcFold">'+(c.fold?'목록 펼치기':'목록 접기')+'</button><button type="button" class="sub" id="yhcAgain">다른 목록에서 체크 더 가져오기</button>';
+  if(!c.v2){c={v2:1,from:c.from,checked:c.moved||0,back:[],more:{},fresh:[],rem:{},van:[]};}
+  var tb=c.back.reduce(function(s,x){return s+x.q;},0);
+  var h='<h3>어제 꺼낸 것 이어받음 · '+c.checked+'줄 체크</h3><div>빨강: 따로 빼 둘 것 '+tb+'족 · 노랑: 더 꺼낼 것 '+Object.keys(c.more).length+'줄 · 파랑: 새로 꺼낼 것 '+c.fresh.filter(function(k){return !done[k];}).length+'줄. 줄을 누르면 그 칸으로 갑니다.</div>';
+  function list(title,arr,color,fold){if(!arr.length)return '';return '<div class="g" style="color:'+color+'">'+esc(title)+' '+arr.length+'줄</div><ul'+(fold?' data-fold="1"':'')+'>'+arr.slice(0,400).map(function(x){return x.k?'<li><a href="#" data-k="'+esc(x.k)+'" style="color:#101828;font-weight:700;text-decoration:underline">'+esc(x.t)+' →</a></li>':'<li style="font-weight:700">'+esc(x.t)+'</li>';}).join('')+(arr.length>400?'<li>… 외 '+(arr.length-400)+'줄</li>':'')+'</ul>';}
+  h+=list('따로 빼 둘 재고 (어제 꺼냈는데 오늘 주문에 없거나 줄어듦)',c.back.map(function(x){return {t:label('x|'+x.it)+' · '+x.q+'족 빼 두기 · '+x.why,k:''};}),'#b42318');
+  h+=list('더 꺼내야 함 (어제 꺼낸 것보다 오늘 주문이 많음)',Object.keys(c.more).map(function(k){return {t:label(k)+' · '+c.more[k],k:rowEl[k]?k:''};}),'#b54708');
+  h+=list('바닥카 주문 외 꺼내기 · 어제와 달라 체크 안 함',Object.keys(c.rem||{}).map(function(k){return {t:label(k)+' · '+c.rem[k],k:rowEl[k]?k:''};}),'#b54708');
+  h+=list('새로 꺼낼 것 (어제 안 꺼낸 것)',c.fresh.filter(function(k){return !done[k];}).map(function(k){return {t:label(k)+(rows[k]!=null?' '+rows[k]+'족':''),k:rowEl[k]?k:''};}),'#175cd3',1);
+  h+=list('참고 · 어제 주문에 있었고 체크 안 했는데 오늘 주문에서 빠진 것',(c.van||[]).map(function(x){return {t:label('x|'+x.it)+' · 어제 주문 '+x.o+'족',k:''};}),'#6941c6',1);
+  h+='<button type="button" class="sub" id="yhcFold">'+(c.fold===false?'긴 목록 접기':'파랑·참고 목록 펼치기')+'</button><button type="button" class="sub" id="yhcAgain">다른 목록에서 체크 더 가져오기</button>';
   box.innerHTML=h;box.hidden=false;
-  if(c.fold)box.querySelectorAll('.g,ul').forEach(function(e){e.style.display='none';});
-  box.querySelector('#yhcFold').onclick=function(){c.fold=!c.fold;put(CK,c);report(c);};
+  if(c.fold!==false)box.querySelectorAll('ul[data-fold]').forEach(function(e){e.style.display='none';});
+  box.querySelector('#yhcFold').onclick=function(){c.fold=c.fold===false;put(CK,c);report(c);};
   box.querySelector('#yhcAgain').onclick=function(){showPicker(true);};
   box.querySelectorAll('a[data-k]').forEach(function(a){a.onclick=function(ev){ev.preventDefault();jump(a.dataset.k);};});
-  Object.keys(c.warn).forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-w');addNote(r,'⚠ '+c.warn[k],'#fff1b8','#7a4b00');});
-  c.fresh.forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-f');addNote(r,'새로 생긴 줄 · 새로 꺼내야 함','#e0ecff','#123f91');});
-  // 문서 순서대로 '확인할 줄' 목록을 만든다(노란 줄 + 아직 안 꺼낸 새 줄).
-  var want={};Object.keys(c.warn).forEach(function(k){if(rowEl[k])want[k]=1;});c.fresh.forEach(function(k){if(rowEl[k]&&!done[k])want[k]=1;});
+  Object.keys(c.more).forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-w');addNote(r,'⚠ '+c.more[k],'#fff1b8','#7a4b00');});
+  Object.keys(c.rem||{}).forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-w');addNote(r,'⚠ '+c.rem[k],'#fff1b8','#7a4b00');});
+  c.fresh.forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-f');addNote(r,'새로 꺼낼 것','#e0ecff','#123f91');});
+  var want={};Object.keys(c.more).concat(Object.keys(c.rem||{})).forEach(function(k){if(rowEl[k])want[k]=1;});c.fresh.forEach(function(k){if(rowEl[k]&&!done[k])want[k]=1;});
   order=[];document.querySelectorAll('.work-row[data-key]').forEach(function(r){if(want[r.dataset.key])order.push(r.dataset.key);});at=-1;upd();
  }
  // 체크를 누를 때마다 '마지막으로 작업한 시각'을 남긴다(옮길 목록을 고를 때 씀).
@@ -134,29 +128,35 @@ input{display:none}
  var carried=get(CK,null);
  if(carried){report(carried);}
  else if(getCands().length){if(get('yhc_skip_'+K,false))showSmall();else showPicker(false);}
+ // 어제 꺼낸 것을 품번·색상·사이즈별 '꺼낸 족수'로 모아, 오늘 꺼낼 줄에 순서대로 채운다.
+ // 남는 족수는 '따로 빼 둘 재고', 모자라면 '더 꺼내야 함'. 바닥카 '주문 외 꺼내기'(빼는 작업)는 따로 줄 단위로 맞춘다.
  function carry(c){
   var old=get(c.key,{}),os=get('yhc_snap_'+c.key,null),oldList=parseList(c.key),newList=parseList(K);
   var oldMode=os&&os.mode||modeOf(oldList);
-  var res={from:c.key,moved:0,warn:{},gone:[],fresh:[],modeSkip:[],oldMode:oldMode,at:Date.now()};
-  var oldItems={};Object.keys(oldList).forEach(function(x){oldItems[x]=1;});
-  if(os)Object.keys(os.rows||{}).forEach(function(x){oldItems[x.slice(x.indexOf('|')+1)]=1;});
-  var newByItem={};Object.keys(rows).forEach(function(k){var it=k.slice(k.indexOf('|')+1);(newByItem[it]=newByItem[it]||[]).push(k);});
-  Object.keys(old).forEach(function(k){if(!old[k])return;var it=k.slice(k.indexOf('|')+1);
-   // 어제 '주문 외 빼기' 체크를 오늘 '주문분 꺼내기'로 옮기면 뜻이 달라지므로 옮기지 않는다.
-   if(k.indexOf('floor|')===0&&oldMode!==MODE){res.modeSkip.push(k);return;}
-   if(k in rows){
-    var same,txt;
-    if(os&&os.rows&&os.rows[k]!=null){same=os.rows[k]===rows[k];txt='어제 '+os.rows[k]+'족 꺼냄 → 지금 '+rows[k]+'족 · 확인 필요';}
-    else{var o=oldList[it],n=newList[it];same=!!(o&&n&&o.order===n.order&&o.scan===n.scan);txt=o&&n&&o.order!==n.order?'어제 체크함 · 주문 '+o.order+'족 → '+n.order+'족으로 바뀜 · 확인 필요':'어제 체크함 · 바닥카 수량이 바뀜 · 확인 필요';}
-    if(done[k]){/* 이미 체크된 줄은 그대로 */}else if(same){done[k]=true;res.moved++;}else res.warn[k]=txt;
-   }else if(newByItem[it]){newByItem[it].forEach(function(k2){if(!done[k2])res.warn[k2]='어제 '+(k.indexOf('warehouse|')===0?'창고':'바닥카')+'에서 체크함 · 위치가 바뀜 · 확인 필요';});}
-   else res.gone.push(k);
+  var it0=function(k){return k.slice(k.indexOf('|')+1);};
+  function oldQty(k){if(os&&os.rows&&os.rows[k]!=null)return +os.rows[k]||0;var o=oldList[it0(k)];if(!o)return 0;var od=+o.order||0,sc=+o.scan||0;if(k.indexOf('warehouse|')===0)return Math.max(0,od-sc);return oldMode==='remove'?Math.max(0,sc-od):Math.min(od,sc);}
+  var pulled={},remOld={};
+  Object.keys(old).forEach(function(k){if(!old[k])return;if(k.indexOf('floor|')===0&&oldMode==='remove'){remOld[k]=oldQty(k);return;}var q=oldQty(k);if(q>0)pulled[it0(k)]=(pulled[it0(k)]||0)+q;});
+  var res={v2:1,from:c.key,checked:0,back:[],more:{},fresh:[],rem:{},van:[],at:Date.now()};
+  var need={};document.querySelectorAll('.work-row[data-key]').forEach(function(r){var k=r.dataset.key;if(!(k in rows))return;if(k.indexOf('floor|')===0&&MODE==='remove')return;(need[it0(k)]=need[it0(k)]||[]).push(k);});
+  Object.keys(need).forEach(function(it){var P=pulled[it]||0,had=P>0;
+   need[it].forEach(function(k){var q=+rows[k]||0;
+    if(done[k]){P-=q;return;}
+    if(P>=q&&q>0){done[k]=true;res.checked++;P-=q;}
+    else if(P>0){res.more[k]='어제 꺼낸 것 '+P+'족 있음 · '+(q-P)+'족 더 꺼내기';P=0;}
+    else res.fresh.push(k);
+   });
+   if(P>0){var tot=need[it].reduce(function(s,k){return s+(+rows[k]||0);},0);res.back.push({it:it,q:P,why:'오늘 '+tot+'족만 필요'});}
   });
-  Object.keys(rows).forEach(function(k){var it=k.slice(k.indexOf('|')+1);if(!oldItems[it])res.fresh.push(k);});
+  Object.keys(pulled).forEach(function(it){if(!need[it])res.back.push({it:it,q:pulled[it],why:'오늘 주문에 없음'});});
+  // 바닥카 주문 외 꺼내기(빼는 작업): 같은 줄·같은 족수면 체크.
+  Object.keys(remOld).forEach(function(k){if(MODE!=='remove'||!(k in rows)||done[k])return;if((+rows[k]||0)===remOld[k]){done[k]=true;res.checked++;}else res.rem[k]='어제 '+remOld[k]+'족 뺐음 · 오늘 '+rows[k]+'족 · 확인';});
+  var chkIt={};Object.keys(old).forEach(function(k){if(old[k])chkIt[it0(k)]=1;});
+  Object.keys(oldList).forEach(function(it){if((+oldList[it].order||0)>0&&!chkIt[it]&&!((newList[it]&&+newList[it].order)>0))res.van.push({it:it,o:oldList[it].order});});
+  res.back.sort(function(a,b){return a.it<b.it?-1:1;});
   try{save();paint();}catch(e){}
   put('yhc_touch_'+K,Date.now());
-  var prev=get(CK,null);if(prev){res.moved+=prev.moved||0;Object.keys(prev.warn||{}).forEach(function(k){if(!done[k]&&!(k in res.warn))res.warn[k]=prev.warn[k];});}
-  Object.keys(res.warn).forEach(function(k){if(done[k])delete res.warn[k];});
+  var prev=get(CK,null);if(prev&&prev.v2)res.checked+=prev.checked||0;
   put(CK,res);report(res);window.scrollTo(0,0);
  }
 })();
