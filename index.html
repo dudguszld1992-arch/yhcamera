@@ -21,6 +21,23 @@ input{display:none}
  var P='ym_floor_source_pick_';
  var K;try{K=KEY;}catch(e){return;}
  if(typeof K!=='string'||K.indexOf(P)!==0)return;
+ // 바닥카에서 꺼낼 칸은 기본 접어 두고, 머리 버튼을 누르면 펼친다(펼침 상태는 이 목록마다 기억).
+ (function(){
+  var FK='yhc_floor_open_'+K;function fget(){try{return localStorage.getItem(FK)==='true';}catch(e){return false;}}function fset(v){try{localStorage.setItem(FK,v?'true':'false');}catch(e){}}
+  document.querySelectorAll('section.source.floor').forEach(function(sec){
+   var grid=sec.querySelector('.grid'),head=sec.querySelector('.source-head');if(!grid||!head)return;
+   var h2=head.querySelector('h2'),title=h2?h2.textContent:'바닥카에서 꺼내기';
+   var btn=document.createElement('button');btn.type='button';btn.style.cssText='display:block;width:100%;min-height:56px;margin:6px 0;padding:8px 12px;border:2px solid #087653;border-radius:10px;background:#fff;color:#087653;font-size:17px;font-weight:800;text-align:left';
+   head.insertAdjacentElement('afterend',btn);
+   function left(){var n=0;grid.querySelectorAll('.work-row[data-key]:not(.no-work)').forEach(function(r){if(!r.classList.contains('row-done')&&!(r.closest('article')||{classList:{contains:function(){return false;}}}).classList.contains('card-done'))n++;});return n;}
+   function show(open){grid.style.setProperty('display',open?'':'none','important');btn.textContent=(open?'▲ 접기 · ':'▼ 펼치기 · ')+title+' · 남은 '+left()+'줄';}
+   var open=fget();show(open);
+   btn.onclick=function(){open=!open;fset(open);show(open);};
+   // 라벨 비추기·확인할 줄 이동으로 이 칸의 줄에 가야 하면 자동으로 펼친다.
+   new MutationObserver(function(ms){if(open)return;for(var i=0;i<ms.length;i++){var t=ms[i].target;if(t.classList&&(t.classList.contains('yhcam-flash')||t.style.outline)){open=true;show(true);setTimeout(function(){t.scrollIntoView({block:'center'});},30);return;}}}).observe(grid,{subtree:true,attributes:true,attributeFilter:['class','style']});
+   grid.addEventListener('click',function(){setTimeout(function(){show(open);},50);});
+  });
+ })();
  function get(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
  function put(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
  function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
