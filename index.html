@@ -30,7 +30,7 @@ input{display:none}
    var btn=document.createElement('button');btn.type='button';btn.style.cssText='display:block;width:100%;min-height:56px;margin:6px 0;padding:8px 12px;border:2px solid #087653;border-radius:10px;background:#fff;color:#087653;font-size:17px;font-weight:800;text-align:left';
    head.insertAdjacentElement('afterend',btn);
    function left(){var n=0;grid.querySelectorAll('.work-row[data-key]:not(.no-work)').forEach(function(r){if(!r.classList.contains('row-done')&&!(r.closest('article')||{classList:{contains:function(){return false;}}}).classList.contains('card-done'))n++;});return n;}
-   function show(open){grid.style.setProperty('display',open?'':'none','important');btn.textContent=(open?'▲ 접기 · ':'▼ 펼치기 · ')+title+' · 남은 '+left()+'줄';}
+   var shown=null;function show(open){if(shown!==open){shown=open;if(open)grid.style.removeProperty('display');else grid.style.setProperty('display','none','important');}btn.textContent=(open?'▲ 접기 · ':'▼ 펼치기 · ')+title+' · 남은 '+left()+'줄';}
    var open=fget();show(open);
    btn.onclick=function(){open=!open;fset(open);show(open);};
    // 라벨 비추기·확인할 줄 이동으로 이 칸의 줄에 가야 하면 자동으로 펼친다.
@@ -68,15 +68,15 @@ input{display:none}
   if(sec)sec.insertAdjacentElement('afterend',wrap);else{var t=document.querySelector('.top');(t&&t.parentNode?t.parentNode:document.body).insertBefore(wrap,t?t.nextSibling:document.body.firstChild);}
  })();
  function label(full,mode){var a=full.split('|');var type=a.shift();var size=a[a.length-1],design=a[0],color=a.length>=4&&a[1]&&a[1]!=='-'?a[1]:'',combo=a.length>=4?a.slice(2,-1).join('|'):'';return design+(color?' '+color:'')+(combo?' / '+combo:'')+' · '+size+(type==='warehouse'?' (창고)':type==='floor'?((mode||MODE)==='remove'?' (바닥카 주문 외)':' (바닥카 주문분)'):'');}
- var css=document.createElement('style');css.textContent='.yhc-box{margin:10px 0;padding:10px 12px;border:2px solid #101828;border-radius:10px;background:#fff;font-size:15px;line-height:1.45;color:#101828}.yhc-box h3{margin:0 0 6px;font-size:17px}.yhc-box button{min-height:44px;margin:4px 6px 4px 0;padding:0 14px;border:0;border-radius:8px;background:#0b8a4a;color:#fff;font-size:16px;font-weight:800}.yhc-box button.sub{background:#e4e7ec;color:#101828;font-weight:700}.yhc-box ul{margin:4px 0 8px;padding-left:18px}.yhc-box li{margin:2px 0}.yhc-box .g{font-weight:800;margin-top:6px}.yhc-warn-row{background:#fff4c2!important;outline:2px solid #e0a800}.yhc-note{grid-column:1/-1;margin:0 0 6px;padding:4px 8px;background:#fff4c2;color:#5c4a00;font-size:14px;font-weight:700;border-radius:6px}';
+ var css=document.createElement('style');css.textContent='.yhc-box{margin:10px 0;padding:10px 12px;border:2px solid #101828;border-radius:10px;background:#fff;font-size:15px;line-height:1.45;color:#101828}.yhc-box h3{margin:0 0 6px;font-size:17px}.yhc-box button{min-height:44px;margin:4px 6px 4px 0;padding:0 14px;border:0;border-radius:8px;background:#0b8a4a;color:#fff;font-size:16px;font-weight:800}.yhc-box button.sub{background:#e4e7ec;color:#101828;font-weight:700}.yhc-box ul{margin:4px 0 8px;padding-left:18px}.yhc-box li{margin:2px 0}.yhc-box .g{font-weight:800;margin-top:6px}.yhc-warn-row{background:#fff4c2!important;outline:2px solid #e0a800}.yhc-x{}html body .work-row.yhc-w:not(.row-done){background:#fff1b8!important;box-shadow:inset 8px 0 0 #e0a800!important}html body .work-row.yhc-f:not(.row-done){background:#e0ecff!important;box-shadow:inset 8px 0 0 #2e6be6!important}html body .work-row.row-done,html body article.card-done .work-row{background:#dcf5e6!important;box-shadow:inset 8px 0 0 #12b76a!important}html body .work-row.row-done+.yhc-note,html body article.card-done .yhc-note{display:none!important}.yhc-note{grid-column:1/-1;margin:0 0 6px;padding:4px 8px;background:#fff4c2;color:#5c4a00;font-size:14px;font-weight:700;border-radius:6px}';
  document.head.appendChild(css);
  var top=document.querySelector('.top')||document.body.firstElementChild;
  var box=document.createElement('div');box.className='yhc-box';box.hidden=true;
  if(top&&top.parentNode)top.parentNode.insertBefore(box,top.nextSibling);else document.body.insertBefore(box,document.body.firstChild);
  var CK='yhc_carry_'+K;
  // 표시는 파일 CSS에 덮이지 않게 줄 자체에 직접 칠한다.
- function paintRow(r,bg,bar){r.style.setProperty('background',bg,'important');r.style.setProperty('box-shadow','inset 8px 0 0 '+bar,'important');}
- function addNote(r,text,bg,fg){var nx=r.nextElementSibling;if(nx&&nx.classList.contains('yhc-note'))return;var n=document.createElement('div');n.className='yhc-note';n.textContent=text;n.style.cssText='display:block!important;margin:0 0 6px!important;padding:6px 10px!important;background:'+bg+'!important;color:'+fg+'!important;font-size:15px!important;font-weight:800!important;border-radius:6px!important;line-height:1.35!important';r.insertAdjacentElement('afterend',n);}
+ function paintRow(r,cls){r.classList.add(cls);}
+ function addNote(r,text,bg,fg){var nx=r.nextElementSibling;if(nx&&nx.classList.contains('yhc-note'))return;var n=document.createElement('div');n.className='yhc-note';n.textContent=text;n.style.cssText='margin:0 0 6px!important;padding:6px 10px!important;background:'+bg+'!important;color:'+fg+'!important;font-size:15px!important;font-weight:800!important;border-radius:6px!important;line-height:1.35!important';r.insertAdjacentElement('afterend',n);}
  var order=[],at=-1;
  function jump(k){var r=rowEl[k];if(!r)return;var q=document.getElementById('q');if(q&&q.value){q.value='';q.dispatchEvent(new Event('input'));}
   var card=r.closest('article');if(card&&getComputedStyle(card).display==='none')card.style.setProperty('display','block','important');
@@ -108,8 +108,8 @@ input{display:none}
   box.querySelector('#yhcFold').onclick=function(){c.fold=!c.fold;put(CK,c);report(c);};
   box.querySelector('#yhcAgain').onclick=function(){showPicker(true);};
   box.querySelectorAll('a[data-k]').forEach(function(a){a.onclick=function(ev){ev.preventDefault();jump(a.dataset.k);};});
-  Object.keys(c.warn).forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'#fff1b8','#e0a800');addNote(r,'⚠ '+c.warn[k],'#fff1b8','#7a4b00');});
-  c.fresh.forEach(function(k){var r=rowEl[k];if(!r||done[k])return;paintRow(r,'#e0ecff','#2e6be6');addNote(r,'새로 생긴 줄 · 새로 꺼내야 함','#e0ecff','#123f91');});
+  Object.keys(c.warn).forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-w');addNote(r,'⚠ '+c.warn[k],'#fff1b8','#7a4b00');});
+  c.fresh.forEach(function(k){var r=rowEl[k];if(!r)return;paintRow(r,'yhc-f');addNote(r,'새로 생긴 줄 · 새로 꺼내야 함','#e0ecff','#123f91');});
   // 문서 순서대로 '확인할 줄' 목록을 만든다(노란 줄 + 아직 안 꺼낸 새 줄).
   var want={};Object.keys(c.warn).forEach(function(k){if(rowEl[k])want[k]=1;});c.fresh.forEach(function(k){if(rowEl[k]&&!done[k])want[k]=1;});
   order=[];document.querySelectorAll('.work-row[data-key]').forEach(function(r){if(want[r.dataset.key])order.push(r.dataset.key);});at=-1;upd();
