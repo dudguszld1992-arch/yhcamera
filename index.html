@@ -21,6 +21,15 @@ input{display:none}
  var P='ym_floor_source_pick_';
  var K;try{K=KEY;}catch(e){return;}
  if(typeof K!=='string'||K.indexOf(P)!==0)return;
+ // 카드 머리 '가져올 수량 N족' 옆에 아직 안 꺼낸 '남은 M족'을 붙인다. 0이면 안 보인다. 체크할 때마다 바로 바뀐다.
+ (function(){
+  function qty(r){var sp=r.querySelector('span');var m=sp&&sp.textContent.match(/(\d+)\s*족/);return m?+m[1]:0;}
+  function upd(){document.querySelectorAll('article[data-keys]').forEach(function(a){var t=a.querySelector('.model-total');if(!t)return;var cd=a.classList.contains('card-done'),n=0;
+    if(!cd)a.querySelectorAll('.work-row[data-key]:not(.no-work)').forEach(function(r){if(!r.classList.contains('row-done'))n+=qty(r);});
+    var m=t.querySelector('.yhc-left');if(!m){m=document.createElement('span');m.className='yhc-left';m.style.cssText='margin-left:6px;font-weight:900';t.appendChild(m);}
+    m.textContent=n>0?'/ 남은 '+n+'족':'';m.style.display=n>0?'':'none';});}
+  upd();document.addEventListener('click',function(){setTimeout(upd,0);});window.__yhcLeft=upd;
+ })();
  // 바닥카에서 꺼낼 칸은 기본 접어 두고, 머리 버튼을 누르면 펼친다(펼침 상태는 이 목록마다 기억).
  (function(){
   var FK='yhc_floor_open_'+K;function fget(){try{return localStorage.getItem(FK)!=='false';}catch(e){return true;}}function fset(v){try{localStorage.setItem(FK,v?'true':'false');}catch(e){}}
@@ -155,6 +164,7 @@ input{display:none}
   Object.keys(oldList).forEach(function(it){if((+oldList[it].order||0)>0&&!chkIt[it]&&!((newList[it]&&+newList[it].order)>0))res.van.push({it:it,o:oldList[it].order});});
   res.back.sort(function(a,b){return a.it<b.it?-1:1;});
   try{save();paint();}catch(e){}
+  try{window.__yhcLeft();}catch(e){}
   put('yhc_touch_'+K,Date.now());
   var prev=get(CK,null);if(prev&&prev.v2)res.checked+=prev.checked||0;
   put(CK,res);report(res);window.scrollTo(0,0);
