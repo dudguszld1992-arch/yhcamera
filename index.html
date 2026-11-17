@@ -63,8 +63,13 @@ input{display:none}
   var fr=c.fresh.map(function(k){return {t:label(k)+(rows[k]!=null?' '+rows[k]+'족':''),k:rowEl[k]?k:''};});
   h+=list('확인 필요 (수량·위치 바뀜, 체크 안 함) · 노란색',w,'#b54708');
   h+=list('바닥카 작업 종류가 바뀌어 안 옮긴 체크 (어제 '+(c.oldMode==='remove'?'주문 외 꺼내기':'주문분 꺼내기')+' → 오늘 '+(MODE==='remove'?'주문 외 꺼내기':'주문분 꺼내기')+')',ms,'#101828');
-  h+=list('어제 꺼냈는데 지금 목록에 없음 (확인)',c.gone.map(function(k){return {t:label(k,c.oldMode),k:''};}),'#101828');
+  var olq=c.from?parseList(c.from):{},nlq=parseList(K);
+  h+=list('어제 꺼냈는데(체크함) 오늘 목록에 없음 · 다시 넣을지 확인',c.gone.map(function(k){var it=k.slice(k.indexOf('|')+1);return {t:label(k,c.oldMode)+(olq[it]?' · 어제 주문 '+olq[it].order+'족 → 오늘 '+(nlq[it]?'주문 '+(nlq[it].order||0)+'족':'목록에 없음'):''),k:''};}),'#b42318');
   h+=list('새로 생긴 줄 (빈칸, 새로 꺼내야 함) · 파란색',fr,'#175cd3');
+  // 어제 목록에서 주문이 있었는데 오늘 목록에서 주문이 사라진 줄(체크 안 한 것). 체크한 것은 위 '어제 꺼냈는데' 목록에 있다.
+  if(c.from){var ol=parseList(c.from),nl=parseList(K),od=get(c.from,{}),chk={};Object.keys(od).forEach(function(x){if(od[x])chk[x.slice(x.indexOf('|')+1)]=1;});
+   var van=Object.keys(ol).filter(function(it){return (+ol[it].order||0)>0&&!chk[it]&&!((nl[it]&&+nl[it].order)>0);}).map(function(it){return {t:label('x|'+it)+' · 어제 주문 '+ol[it].order+'족 → 오늘 '+(nl[it]?'주문 0':'목록에 없음'),k:''};});
+   h+=list('어제 주문 있었는데 오늘 주문에서 빠진 줄 (어제 체크 안 함)',van,'#6941c6');}
   h+='<button type="button" class="sub" id="yhcFold">'+(c.fold?'목록 펼치기':'목록 접기')+'</button>';
   box.innerHTML=h;box.hidden=false;
   if(c.fold)box.querySelectorAll('.g,ul').forEach(function(e){e.style.display='none';});
